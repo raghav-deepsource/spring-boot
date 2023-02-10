@@ -1,6 +1,9 @@
 version = 1
 
-exclude_patterns = ["**/intTest/**"]
+exclude_patterns = [
+  "**/intTest/**",
+  "spring-boot-tests/**"
+]
 
 [[analyzers]]
 name = "java"
