@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2021 the original author or authors.
+ * Copyright 2012-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +24,6 @@ import java.io.PrintWriter;
 import java.io.StringReader;
 import java.util.List;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 
 import org.gradle.testkit.runner.BuildResult;
 import org.gradle.testkit.runner.GradleRunner;
@@ -170,7 +169,7 @@ class TestFailuresPluginIntegrationTests {
 
 	private List<String> readLines(String output) {
 		try (BufferedReader reader = new BufferedReader(new StringReader(output))) {
-			return reader.lines().collect(Collectors.toList());
+			return reader.lines().toList();
 		}
 		catch (IOException ex) {
 			throw new RuntimeException(ex);

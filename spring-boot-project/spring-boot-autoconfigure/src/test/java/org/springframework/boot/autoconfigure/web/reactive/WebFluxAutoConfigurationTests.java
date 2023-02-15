@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -70,6 +70,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.validation.Validator;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
+import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.filter.reactive.HiddenHttpMethodFilter;
 import org.springframework.web.reactive.HandlerMapping;
 import org.springframework.web.reactive.accept.RequestedContentTypeResolver;
@@ -85,6 +86,7 @@ import org.springframework.web.reactive.resource.ResourceWebHandler;
 import org.springframework.web.reactive.result.method.HandlerMethodArgumentResolver;
 import org.springframework.web.reactive.result.method.annotation.RequestMappingHandlerAdapter;
 import org.springframework.web.reactive.result.method.annotation.RequestMappingHandlerMapping;
+import org.springframework.web.reactive.result.method.annotation.ResponseEntityExceptionHandler;
 import org.springframework.web.reactive.result.view.ViewResolutionResultHandler;
 import org.springframework.web.reactive.result.view.ViewResolver;
 import org.springframework.web.server.ServerWebExchange;
@@ -109,6 +111,7 @@ import static org.mockito.Mockito.mock;
  * @author Brian Clozel
  * @author Andy Wilkinson
  * @author Artsiom Yudovin
+ * @author Vedran Pavic
  */
 class WebFluxAutoConfigurationTests {
 
@@ -183,6 +186,18 @@ class WebFluxAutoConfigurationTests {
 			assertThat(hm.getUrlMap().get("/static/**")).isInstanceOf(ResourceWebHandler.class);
 			ResourceWebHandler staticHandler = (ResourceWebHandler) hm.getUrlMap().get("/static/**");
 			assertThat(staticHandler).extracting("locationValues").asList().hasSize(4);
+		});
+	}
+
+	@Test
+	void shouldMapWebjarsToCustomPath() {
+		this.contextRunner.withPropertyValues("spring.webflux.webjars-path-pattern:/assets/**").run((context) -> {
+			SimpleUrlHandlerMapping hm = context.getBean("resourceHandlerMapping", SimpleUrlHandlerMapping.class);
+			assertThat(hm.getUrlMap().get("/assets/**")).isInstanceOf(ResourceWebHandler.class);
+			ResourceWebHandler webjarsHandler = (ResourceWebHandler) hm.getUrlMap().get("/assets/**");
+			assertThat(webjarsHandler.getLocations()).hasSize(1);
+			assertThat(webjarsHandler.getLocations().get(0))
+					.isEqualTo(new ClassPathResource("/META-INF/resources/webjars/"));
 		});
 	}
 
@@ -335,8 +350,7 @@ class WebFluxAutoConfigurationTests {
 					assertThat(context.getBean("webFluxValidator"))
 							.isSameAs(context.getBean(ValidatorWebFluxConfigurer.class).validator);
 					// Primary Spring validator is the auto-configured one as the WebFlux
-					// one has been
-					// customized via a WebFluxConfigurer
+					// one has been customized through a WebFluxConfigurer
 					assertThat(context.getBean(Validator.class)).isEqualTo(context.getBean("defaultValidator"));
 				});
 	}
@@ -397,7 +411,7 @@ class WebFluxAutoConfigurationTests {
 		this.contextRunner.withUserConfiguration(CustomRequestMappingHandlerMapping.class).run((context) -> {
 			assertThat(context).getBean(RequestMappingHandlerMapping.class)
 					.isInstanceOf(MyRequestMappingHandlerMapping.class);
-			assertThat(context.getBean(CustomRequestMappingHandlerMapping.class).handlerMappings).isEqualTo(1);
+			assertThat(context.getBean(CustomRequestMappingHandlerMapping.class).handlerMappings).isOne();
 		});
 	}
 
@@ -406,7 +420,7 @@ class WebFluxAutoConfigurationTests {
 		this.contextRunner.withUserConfiguration(CustomRequestMappingHandlerAdapter.class).run((context) -> {
 			assertThat(context).getBean(RequestMappingHandlerAdapter.class)
 					.isInstanceOf(MyRequestMappingHandlerAdapter.class);
-			assertThat(context.getBean(CustomRequestMappingHandlerAdapter.class).handlerAdapters).isEqualTo(1);
+			assertThat(context.getBean(CustomRequestMappingHandlerAdapter.class).handlerAdapters).isOne();
 		});
 	}
 
@@ -607,6 +621,25 @@ class WebFluxAutoConfigurationTests {
 				.withConfiguration(AutoConfigurations.of(WebFluxAutoConfiguration.class,
 						WebSessionIdResolverAutoConfiguration.class))
 				.run((context) -> assertThat(context).doesNotHaveBean(propertiesClass));
+	}
+
+	@Test
+	void problemDetailsDisabledByDefault() {
+		this.contextRunner.run((context) -> assertThat(context).doesNotHaveBean(ProblemDetailsExceptionHandler.class));
+	}
+
+	@Test
+	void problemDetailsEnabledAddsExceptionHandler() {
+		this.contextRunner.withPropertyValues("spring.webflux.problemdetails.enabled:true")
+				.run((context) -> assertThat(context).hasSingleBean(ProblemDetailsExceptionHandler.class));
+	}
+
+	@Test
+	void problemDetailsBacksOffWhenExceptionHandler() {
+		this.contextRunner.withPropertyValues("spring.webflux.problemdetails.enabled:true")
+				.withUserConfiguration(CustomExceptionHandlerConfiguration.class)
+				.run((context) -> assertThat(context).doesNotHaveBean(ProblemDetailsExceptionHandler.class)
+						.hasSingleBean(CustomExceptionHandler.class));
 	}
 
 	private ContextConsumer<ReactiveWebApplicationContext> assertExchangeWithSession(
@@ -895,6 +928,21 @@ class WebFluxAutoConfigurationTests {
 
 	@Order(100)
 	static class LowPrecedenceConfigurer implements WebFluxConfigurer {
+
+	}
+
+	@Configuration(proxyBeanMethods = false)
+	static class CustomExceptionHandlerConfiguration {
+
+		@Bean
+		CustomExceptionHandler customExceptionHandler() {
+			return new CustomExceptionHandler();
+		}
+
+	}
+
+	@ControllerAdvice
+	static class CustomExceptionHandler extends ResponseEntityExceptionHandler {
 
 	}
 

@@ -27,6 +27,7 @@ import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
+import org.apache.http.impl.nio.reactor.IOReactorConfig;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestClientBuilder;
 import org.elasticsearch.client.sniff.Sniffer;
@@ -35,7 +36,6 @@ import org.elasticsearch.client.sniff.SnifferBuilder;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnSingleCandidate;
 import org.springframework.boot.context.properties.PropertyMapper;
 import org.springframework.context.annotation.Bean;
@@ -109,36 +109,7 @@ class ElasticsearchRestClientConfigurations {
 
 	}
 
-	@SuppressWarnings("deprecation")
 	@Configuration(proxyBeanMethods = false)
-	@ConditionalOnClass(org.elasticsearch.client.RestHighLevelClient.class)
-	@ConditionalOnMissingBean({ org.elasticsearch.client.RestHighLevelClient.class, RestClient.class })
-	static class RestHighLevelClientConfiguration {
-
-		@Bean
-		org.elasticsearch.client.RestHighLevelClient elasticsearchRestHighLevelClient(
-				RestClientBuilder restClientBuilder) {
-			return new org.elasticsearch.client.RestHighLevelClient(restClientBuilder);
-		}
-
-	}
-
-	@SuppressWarnings("deprecation")
-	@Configuration(proxyBeanMethods = false)
-	@ConditionalOnClass(org.elasticsearch.client.RestHighLevelClient.class)
-	@ConditionalOnSingleCandidate(org.elasticsearch.client.RestHighLevelClient.class)
-	@ConditionalOnMissingBean(RestClient.class)
-	static class RestClientFromRestHighLevelClientConfiguration {
-
-		@Bean
-		RestClient elasticsearchRestClient(org.elasticsearch.client.RestHighLevelClient restHighLevelClient) {
-			return restHighLevelClient.getLowLevelClient();
-		}
-
-	}
-
-	@Configuration(proxyBeanMethods = false)
-	@ConditionalOnMissingClass("org.elasticsearch.client.RestHighLevelClient")
 	@ConditionalOnMissingBean(RestClient.class)
 	static class RestClientConfiguration {
 
@@ -185,6 +156,8 @@ class ElasticsearchRestClientConfigurations {
 		@Override
 		public void customize(HttpAsyncClientBuilder builder) {
 			builder.setDefaultCredentialsProvider(new PropertiesCredentialsProvider(this.properties));
+			map.from(this.properties::isSocketKeepAlive).to((keepAlive) -> builder
+					.setDefaultIOReactorConfig(IOReactorConfig.custom().setSoKeepAlive(keepAlive).build()));
 		}
 
 		@Override

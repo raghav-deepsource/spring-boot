@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import java.util.Map;
 
 import com.hazelcast.spring.cache.HazelcastCacheManager;
 import org.cache2k.extra.spring.SpringCache2kCacheManager;
+import org.infinispan.spring.embedded.provider.SpringEmbeddedCacheManager;
 
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext;
@@ -71,7 +72,7 @@ abstract class AbstractCacheAutoConfigurationTests {
 					assertThat(value.cacheManager).isNull();
 				}
 			});
-			assertThat(expected).hasSize(0);
+			assertThat(expected).isEmpty();
 		};
 	}
 
@@ -101,7 +102,7 @@ abstract class AbstractCacheAutoConfigurationTests {
 
 		@Bean
 		CacheManagerCustomizer<CouchbaseCacheManager> couchbaseCacheManagerCustomizer() {
-			return new CacheManagerTestCustomizer<CouchbaseCacheManager>() {
+			return new CacheManagerTestCustomizer<>() {
 
 			};
 		}
@@ -121,8 +122,15 @@ abstract class AbstractCacheAutoConfigurationTests {
 		}
 
 		@Bean
+		CacheManagerCustomizer<SpringEmbeddedCacheManager> infinispanCacheManagerCustomizer() {
+			return new CacheManagerTestCustomizer<>() {
+
+			};
+		}
+
+		@Bean
 		CacheManagerCustomizer<SpringCache2kCacheManager> cache2kCacheManagerCustomizer() {
-			return new CacheManagerTestCustomizer<SpringCache2kCacheManager>() {
+			return new CacheManagerTestCustomizer<>() {
 
 			};
 		}

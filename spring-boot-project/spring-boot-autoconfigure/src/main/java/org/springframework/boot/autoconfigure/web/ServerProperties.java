@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,6 +31,7 @@ import java.util.Map;
 import io.undertow.UndertowOptions;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.DeprecatedConfigurationProperty;
 import org.springframework.boot.context.properties.NestedConfigurationProperty;
 import org.springframework.boot.convert.DurationUnit;
 import org.springframework.boot.web.server.Compression;
@@ -68,6 +69,8 @@ import org.springframework.util.unit.DataSize;
  * @author Victor Mandujano
  * @author Chris Bono
  * @author Parviz Rozikov
+ * @author Florian Storz
+ * @author Michael Weidmann
  * @since 1.0.0
  */
 @ConfigurationProperties(prefix = "server", ignoreUnknownFields = true)
@@ -97,9 +100,9 @@ public class ServerProperties {
 	private String serverHeader;
 
 	/**
-	 * Maximum size of the HTTP message header.
+	 * Maximum size of the HTTP request header.
 	 */
-	private DataSize maxHttpHeaderSize = DataSize.ofKilobytes(8);
+	private DataSize maxHttpRequestHeaderSize = DataSize.ofKilobytes(8);
 
 	/**
 	 * Type of shutdown that the server will support.
@@ -151,12 +154,23 @@ public class ServerProperties {
 		this.serverHeader = serverHeader;
 	}
 
+	@Deprecated(since = "3.0.0", forRemoval = true)
+	@DeprecatedConfigurationProperty
 	public DataSize getMaxHttpHeaderSize() {
-		return this.maxHttpHeaderSize;
+		return getMaxHttpRequestHeaderSize();
 	}
 
+	@Deprecated(since = "3.0.0", forRemoval = true)
 	public void setMaxHttpHeaderSize(DataSize maxHttpHeaderSize) {
-		this.maxHttpHeaderSize = maxHttpHeaderSize;
+		setMaxHttpRequestHeaderSize(maxHttpHeaderSize);
+	}
+
+	public DataSize getMaxHttpRequestHeaderSize() {
+		return this.maxHttpRequestHeaderSize;
+	}
+
+	public void setMaxHttpRequestHeaderSize(DataSize maxHttpRequestHeaderSize) {
+		this.maxHttpRequestHeaderSize = maxHttpRequestHeaderSize;
 	}
 
 	public Shutdown getShutdown() {
@@ -326,6 +340,7 @@ public class ServerProperties {
 			@DurationUnit(ChronoUnit.SECONDS)
 			private Duration timeout = Duration.ofMinutes(30);
 
+			@NestedConfigurationProperty
 			private final Cookie cookie = new Cookie();
 
 			public Duration getTimeout() {
@@ -476,6 +491,11 @@ public class ServerProperties {
 		 * Remote Ip Valve configuration.
 		 */
 		private final Remoteip remoteip = new Remoteip();
+
+		/**
+		 * Maximum size of the HTTP response header.
+		 */
+		private DataSize maxHttpResponseHeaderSize = DataSize.ofKilobytes(8);
 
 		public DataSize getMaxHttpFormPostSize() {
 			return this.maxHttpFormPostSize;
@@ -633,6 +653,14 @@ public class ServerProperties {
 			return this.remoteip;
 		}
 
+		public DataSize getMaxHttpResponseHeaderSize() {
+			return this.maxHttpResponseHeaderSize;
+		}
+
+		public void setMaxHttpResponseHeaderSize(DataSize maxHttpResponseHeaderSize) {
+			this.maxHttpResponseHeaderSize = maxHttpResponseHeaderSize;
+		}
+
 		/**
 		 * Tomcat access log properties.
 		 */
@@ -689,7 +717,7 @@ public class ServerProperties {
 			private String locale;
 
 			/**
-			 * Whether to check for log file existence so it can be recreated it if an
+			 * Whether to check for log file existence so it can be recreated if an
 			 * external process has renamed it.
 			 */
 			private boolean checkExists = false;
@@ -992,6 +1020,12 @@ public class ServerProperties {
 			 */
 			private String remoteIpHeader;
 
+			/**
+			 * Regular expression defining proxies that are trusted when they appear in
+			 * the "remote-ip-header" header.
+			 */
+			private String trustedProxies;
+
 			public String getInternalProxies() {
 				return this.internalProxies;
 			}
@@ -1040,6 +1074,14 @@ public class ServerProperties {
 				this.remoteIpHeader = remoteIpHeader;
 			}
 
+			public String getTrustedProxies() {
+				return this.trustedProxies;
+			}
+
+			public void setTrustedProxies(String trustedProxies) {
+				this.trustedProxies = trustedProxies;
+			}
+
 		}
 
 	}
@@ -1069,6 +1111,11 @@ public class ServerProperties {
 		 */
 		private Duration connectionIdleTimeout;
 
+		/**
+		 * Maximum size of the HTTP response header.
+		 */
+		private DataSize maxHttpResponseHeaderSize = DataSize.ofKilobytes(8);
+
 		public Accesslog getAccesslog() {
 			return this.accesslog;
 		}
@@ -1091,6 +1138,14 @@ public class ServerProperties {
 
 		public void setConnectionIdleTimeout(Duration connectionIdleTimeout) {
 			this.connectionIdleTimeout = connectionIdleTimeout;
+		}
+
+		public DataSize getMaxHttpResponseHeaderSize() {
+			return this.maxHttpResponseHeaderSize;
+		}
+
+		public void setMaxHttpResponseHeaderSize(DataSize maxHttpResponseHeaderSize) {
+			this.maxHttpResponseHeaderSize = maxHttpResponseHeaderSize;
 		}
 
 		/**
@@ -1384,10 +1439,13 @@ public class ServerProperties {
 			this.initialBufferSize = initialBufferSize;
 		}
 
+		@Deprecated(since = "3.0.0", forRemoval = true)
+		@DeprecatedConfigurationProperty(reason = "Deprecated for removal in Reactor Netty")
 		public DataSize getMaxChunkSize() {
 			return this.maxChunkSize;
 		}
 
+		@Deprecated(since = "3.0.0", forRemoval = true)
 		public void setMaxChunkSize(DataSize maxChunkSize) {
 			this.maxChunkSize = maxChunkSize;
 		}
@@ -1754,9 +1812,15 @@ public class ServerProperties {
 
 		public static class Options {
 
-			private Map<String, String> socket = new LinkedHashMap<>();
+			/**
+			 * Socket options as defined in org.xnio.Options.
+			 */
+			private final Map<String, String> socket = new LinkedHashMap<>();
 
-			private Map<String, String> server = new LinkedHashMap<>();
+			/**
+			 * Server options as defined in io.undertow.UndertowOptions.
+			 */
+			private final Map<String, String> server = new LinkedHashMap<>();
 
 			public Map<String, String> getServer() {
 				return this.server;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -49,7 +49,7 @@ import org.springframework.boot.loader.tools.RunProcess;
  */
 @Mojo(name = "start", requiresProject = true, defaultPhase = LifecyclePhase.PRE_INTEGRATION_TEST,
 		requiresDependencyResolution = ResolutionScope.TEST)
-public class StartMojo extends AbstractApplicationRunMojo {
+public class StartMojo extends AbstractRunMojo {
 
 	private static final String ENABLE_MBEAN_PROPERTY = "--spring.application.admin.enabled=true";
 
@@ -86,27 +86,15 @@ public class StartMojo extends AbstractApplicationRunMojo {
 	private final Object lock = new Object();
 
 	@Override
-	protected void run(File workingDirectory, List<String> args, Map<String, String> environmentVariables)
-			throws MojoExecutionException, MojoFailureException {
-		RunProcess runProcess = runProcess(workingDirectory, args, environmentVariables);
+	protected void run(JavaProcessExecutor processExecutor, File workingDirectory, List<String> args,
+			Map<String, String> environmentVariables) throws MojoExecutionException, MojoFailureException {
+		RunProcess runProcess = processExecutor.runAsync(workingDirectory, args, environmentVariables);
 		try {
 			waitForSpringApplication();
 		}
 		catch (MojoExecutionException | MojoFailureException ex) {
 			runProcess.kill();
 			throw ex;
-		}
-	}
-
-	private RunProcess runProcess(File workingDirectory, List<String> args, Map<String, String> environmentVariables)
-			throws MojoExecutionException {
-		try {
-			RunProcess runProcess = new RunProcess(workingDirectory, getJavaExecutable());
-			runProcess.run(false, args, environmentVariables);
-			return runProcess;
-		}
-		catch (Exception ex) {
-			throw new MojoExecutionException("Could not exec java", ex);
 		}
 	}
 
@@ -145,7 +133,8 @@ public class StartMojo extends AbstractApplicationRunMojo {
 			}
 		}
 		catch (IOException ex) {
-			throw new MojoFailureException("Could not contact Spring Boot application", ex);
+			throw new MojoFailureException("Could not contact Spring Boot application via JMX on port " + this.jmxPort
+					+ ". Please make sure that no other process is using that port", ex);
 		}
 		catch (Exception ex) {
 			throw new MojoExecutionException("Failed to connect to MBean server at port " + this.jmxPort, ex);

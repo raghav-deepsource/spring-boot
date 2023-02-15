@@ -30,6 +30,8 @@ import org.junit.jupiter.api.Test;
 
 import org.springframework.boot.actuate.metrics.web.servlet.DefaultWebMvcTagsProvider;
 import org.springframework.boot.actuate.metrics.web.servlet.WebMvcTagsContributor;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.web.servlet.HandlerMapping;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -38,6 +40,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * @author Andy Wilkinson
  */
+@SuppressWarnings("removal")
+@Deprecated(since = "3.0.0", forRemoval = true)
 class DefaultWebMvcTagsProviderTests {
 
 	@Test
@@ -69,6 +73,22 @@ class DefaultWebMvcTagsProviderTests {
 		assertThat(tags).containsOnlyKeys("method", "uri", "alpha", "bravo", "charlie");
 	}
 
+	@Test
+	void trailingSlashIsIncludedByDefault() {
+		MockHttpServletRequest request = new MockHttpServletRequest("GET", "/the/uri/");
+		request.setAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE, "{one}/{two}/");
+		Map<String, Tag> tags = asMap(new DefaultWebMvcTagsProvider().getTags(request, null, null, null));
+		assertThat(tags.get("uri").getValue()).isEqualTo("{one}/{two}/");
+	}
+
+	@Test
+	void trailingSlashCanBeIgnored() {
+		MockHttpServletRequest request = new MockHttpServletRequest("GET", "/the/uri/");
+		request.setAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE, "{one}/{two}/");
+		Map<String, Tag> tags = asMap(new DefaultWebMvcTagsProvider(true).getTags(request, null, null, null));
+		assertThat(tags.get("uri").getValue()).isEqualTo("{one}/{two}");
+	}
+
 	private Map<String, Tag> asMap(Iterable<Tag> tags) {
 		return StreamSupport.stream(tags.spliterator(), false)
 				.collect(Collectors.toMap(Tag::getKey, Function.identity()));
@@ -85,12 +105,12 @@ class DefaultWebMvcTagsProviderTests {
 		@Override
 		public Iterable<Tag> getTags(HttpServletRequest request, HttpServletResponse response, Object handler,
 				Throwable exception) {
-			return this.tagNames.stream().map((name) -> Tag.of(name, "value")).collect(Collectors.toList());
+			return this.tagNames.stream().map((name) -> Tag.of(name, "value")).toList();
 		}
 
 		@Override
 		public Iterable<Tag> getLongRequestTags(HttpServletRequest request, Object handler) {
-			return this.tagNames.stream().map((name) -> Tag.of(name, "value")).collect(Collectors.toList());
+			return this.tagNames.stream().map((name) -> Tag.of(name, "value")).toList();
 		}
 
 	}

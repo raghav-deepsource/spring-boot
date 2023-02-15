@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2021 the original author or authors.
+ * Copyright 2012-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@
 package org.springframework.boot.autoconfigure.r2dbc;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 import io.r2dbc.pool.ConnectionPool;
 import io.r2dbc.pool.ConnectionPoolConfiguration;
@@ -90,7 +89,7 @@ abstract class ConnectionFactoryConfigurations {
 			ConnectionPool connectionFactory(R2dbcProperties properties, ResourceLoader resourceLoader,
 					ObjectProvider<ConnectionFactoryOptionsBuilderCustomizer> customizers) {
 				ConnectionFactory connectionFactory = createConnectionFactory(properties,
-						resourceLoader.getClassLoader(), customizers.orderedStream().collect(Collectors.toList()));
+						resourceLoader.getClassLoader(), customizers.orderedStream().toList());
 				R2dbcProperties.Pool pool = properties.getPool();
 				PropertyMapper map = PropertyMapper.get().alwaysApplyingWhenNonNull();
 				ConnectionPoolConfiguration.Builder builder = ConnectionPoolConfiguration.builder(connectionFactory);
@@ -119,14 +118,14 @@ abstract class ConnectionFactoryConfigurations {
 		ConnectionFactory connectionFactory(R2dbcProperties properties, ResourceLoader resourceLoader,
 				ObjectProvider<ConnectionFactoryOptionsBuilderCustomizer> customizers) {
 			return createConnectionFactory(properties, resourceLoader.getClassLoader(),
-					customizers.orderedStream().collect(Collectors.toList()));
+					customizers.orderedStream().toList());
 		}
 
 	}
 
 	/**
 	 * {@link Condition} that checks that a {@link ConnectionPool} is requested. The
-	 * condition matches if pooling was opt-in via configuration. If any of the
+	 * condition matches if pooling was opt-in through configuration. If any of the
 	 * spring.r2dbc.pool.* properties have been configured, an exception is thrown if the
 	 * URL also contains pooling-related options or io.r2dbc.pool.ConnectionPool is not on
 	 * the class path.

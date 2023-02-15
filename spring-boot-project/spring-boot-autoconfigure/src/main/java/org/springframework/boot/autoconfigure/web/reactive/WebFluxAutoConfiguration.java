@@ -39,7 +39,7 @@ import org.springframework.boot.autoconfigure.web.ConditionalOnEnabledResourceCh
 import org.springframework.boot.autoconfigure.web.ServerProperties;
 import org.springframework.boot.autoconfigure.web.WebProperties;
 import org.springframework.boot.autoconfigure.web.WebProperties.Resources;
-import org.springframework.boot.autoconfigure.web.WebResourcesRuntimeHintsRegistrar;
+import org.springframework.boot.autoconfigure.web.WebResourcesRuntimeHints;
 import org.springframework.boot.autoconfigure.web.format.DateTimeFormatters;
 import org.springframework.boot.autoconfigure.web.format.WebConversionService;
 import org.springframework.boot.autoconfigure.web.reactive.WebFluxProperties.Format;
@@ -74,6 +74,7 @@ import org.springframework.web.reactive.result.method.HandlerMethodArgumentResol
 import org.springframework.web.reactive.result.method.annotation.ArgumentResolverConfigurer;
 import org.springframework.web.reactive.result.method.annotation.RequestMappingHandlerAdapter;
 import org.springframework.web.reactive.result.method.annotation.RequestMappingHandlerMapping;
+import org.springframework.web.reactive.result.method.annotation.ResponseEntityExceptionHandler;
 import org.springframework.web.reactive.result.view.ViewResolver;
 import org.springframework.web.server.WebSession;
 import org.springframework.web.server.adapter.WebHttpHandlerBuilder;
@@ -106,7 +107,7 @@ import org.springframework.web.server.session.WebSessionManager;
 @ConditionalOnClass(WebFluxConfigurer.class)
 @ConditionalOnMissingBean({ WebFluxConfigurationSupport.class })
 @AutoConfigureOrder(Ordered.HIGHEST_PRECEDENCE + 10)
-@ImportRuntimeHints(WebResourcesRuntimeHintsRegistrar.class)
+@ImportRuntimeHints(WebResourcesRuntimeHints.class)
 public class WebFluxAutoConfiguration {
 
 	@Bean
@@ -189,8 +190,9 @@ public class WebFluxAutoConfiguration {
 				logger.debug("Default resource handling disabled");
 				return;
 			}
-			if (!registry.hasMappingForPattern("/webjars/**")) {
-				ResourceHandlerRegistration registration = registry.addResourceHandler("/webjars/**")
+			String webjarsPathPattern = this.webFluxProperties.getWebjarsPathPattern();
+			if (!registry.hasMappingForPattern(webjarsPathPattern)) {
+				ResourceHandlerRegistration registration = registry.addResourceHandler(webjarsPathPattern)
 						.addResourceLocations("classpath:/META-INF/resources/webjars/");
 				configureResourceCaching(registration);
 				customizeResourceHandlerRegistration(registration);
@@ -329,6 +331,18 @@ public class WebFluxAutoConfiguration {
 		ResourceChainResourceHandlerRegistrationCustomizer resourceHandlerRegistrationCustomizer(
 				WebProperties webProperties) {
 			return new ResourceChainResourceHandlerRegistrationCustomizer(webProperties.getResources());
+		}
+
+	}
+
+	@Configuration(proxyBeanMethods = false)
+	@ConditionalOnProperty(prefix = "spring.webflux.problemdetails", name = "enabled", havingValue = "true")
+	static class ProblemDetailsErrorHandlingConfiguration {
+
+		@Bean
+		@ConditionalOnMissingBean(ResponseEntityExceptionHandler.class)
+		ProblemDetailsExceptionHandler problemDetailsExceptionHandler() {
+			return new ProblemDetailsExceptionHandler();
 		}
 
 	}

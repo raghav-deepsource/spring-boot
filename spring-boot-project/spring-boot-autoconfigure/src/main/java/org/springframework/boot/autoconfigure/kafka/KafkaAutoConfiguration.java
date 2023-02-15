@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -86,13 +86,13 @@ public class KafkaAutoConfiguration {
 
 	@Bean
 	@ConditionalOnMissingBean(ProducerListener.class)
-	public ProducerListener<Object, Object> kafkaProducerListener() {
+	public LoggingProducerListener<Object, Object> kafkaProducerListener() {
 		return new LoggingProducerListener<>();
 	}
 
 	@Bean
 	@ConditionalOnMissingBean(ConsumerFactory.class)
-	public ConsumerFactory<?, ?> kafkaConsumerFactory(
+	public DefaultKafkaConsumerFactory<?, ?> kafkaConsumerFactory(
 			ObjectProvider<DefaultKafkaConsumerFactoryCustomizer> customizers) {
 		DefaultKafkaConsumerFactory<Object, Object> factory = new DefaultKafkaConsumerFactory<>(
 				this.properties.buildConsumerProperties());
@@ -102,7 +102,7 @@ public class KafkaAutoConfiguration {
 
 	@Bean
 	@ConditionalOnMissingBean(ProducerFactory.class)
-	public ProducerFactory<?, ?> kafkaProducerFactory(
+	public DefaultKafkaProducerFactory<?, ?> kafkaProducerFactory(
 			ObjectProvider<DefaultKafkaProducerFactoryCustomizer> customizers) {
 		DefaultKafkaProducerFactory<?, ?> factory = new DefaultKafkaProducerFactory<>(
 				this.properties.buildProducerProperties());
@@ -141,7 +141,16 @@ public class KafkaAutoConfiguration {
 	@ConditionalOnMissingBean
 	public KafkaAdmin kafkaAdmin() {
 		KafkaAdmin kafkaAdmin = new KafkaAdmin(this.properties.buildAdminProperties());
-		kafkaAdmin.setFatalIfBrokerNotAvailable(this.properties.getAdmin().isFailFast());
+		KafkaProperties.Admin admin = this.properties.getAdmin();
+		if (admin.getCloseTimeout() != null) {
+			kafkaAdmin.setCloseTimeout((int) admin.getCloseTimeout().getSeconds());
+		}
+		if (admin.getOperationTimeout() != null) {
+			kafkaAdmin.setOperationTimeout((int) admin.getOperationTimeout().getSeconds());
+		}
+		kafkaAdmin.setFatalIfBrokerNotAvailable(admin.isFailFast());
+		kafkaAdmin.setModifyTopicConfigs(admin.isModifyTopicConfigs());
+		kafkaAdmin.setAutoCreate(admin.isAutoCreate());
 		return kafkaAdmin;
 	}
 
